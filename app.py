@@ -10,36 +10,6 @@ import traceback
 import pandas as pd
 from PIL import ImageEnhance
 
-# Custom error handling for OpenCV import
-try:
-    import cv2
-except ImportError as e:
-    st.error("""
-    Error importing OpenCV. Please run the following commands:
-    ```bash
-    apt-get update
-    apt-get install -y libgl1-mesa-glx libglib2.0-0
-    pip uninstall -y opencv-python cv2 opencv-python-headless
-    pip install opencv-python-headless==4.7.0.72
-    ```
-    """)
-    st.stop()
-
-# Try importing doctr
-try:
-    from doctr.models import ocr_predictor
-except ImportError as e:
-    st.error("""
-    Error importing doctr. Please install it using:
-    ```bash
-    pip install python-doctr[torch]
-    ```
-    """)
-    st.stop()
-
-# Configuration and setup
-
-
 # Set page config
 st.set_page_config(page_title="Document OCR Processing", layout="wide")
 
@@ -60,15 +30,13 @@ FIELDS = {
 }
 
 # Add sidebar with preprocessing options
-# Add this at the sidebar section of your code, replace the existing sidebar code
-
 with st.sidebar:
     st.header("Preprocessing Options")
-    resize_factor = st.slider("Resize Factor", 0.1, 2.0, 1.0)
-    enhance_contrast = st.checkbox("Enhance Contrast", False)
-    denoise = st.checkbox("Remove Noise", False)
+    resize_factor = st.slider("Resize Factor", 0.1, 2.0, 1.0, help="Adjust image size")
+    enhance_contrast = st.slider("Contrast Enhancement", 0.5, 2.0, 1.0, help="Adjust image contrast")
+    denoise = st.checkbox("Remove Noise", False, help="Apply noise reduction")
+    show_confidence = st.checkbox("Show Confidence Scores", False, help="Display confidence scores for extracted fields")
 
-    
 @st.cache_resource(ttl=3600)
 def load_model():
     try:
