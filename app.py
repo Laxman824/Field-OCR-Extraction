@@ -6,10 +6,47 @@ import json
 import re
 from doctr.models import ocr_predictor
 import io
+import sys
 import traceback
 
-# Set page config
-st.set_page_config(page_title="Document OCR App", layout="wide")
+# Custom error handling for OpenCV import
+try:
+    import cv2
+except ImportError as e:
+    st.error("""
+    Error importing OpenCV. Please run the following commands:
+    ```bash
+    apt-get update
+    apt-get install -y libgl1-mesa-glx libglib2.0-0
+    pip uninstall -y opencv-python cv2 opencv-python-headless
+    pip install opencv-python-headless==4.7.0.72
+    ```
+    """)
+    st.stop()
+
+# Try importing doctr
+try:
+    from doctr.models import ocr_predictor
+except ImportError as e:
+    st.error("""
+    Error importing doctr. Please install it using:
+    ```bash
+    pip install python-doctr[torch]
+    ```
+    """)
+    st.stop()
+
+# Configuration and setup
+st.set_page_config(page_title="Document OCR Processing", layout="wide")
+
+@st.cache_resource
+def load_model():
+    try:
+        return ocr_predictor(pretrained=True)
+    except Exception as e:
+        st.error(f"Error loading OCR model: {str(e)}")
+        st.stop()
+
 
 # Define fields with regular expressions for flexible matching
 FIELDS = {
@@ -27,9 +64,9 @@ FIELDS = {
     "Date": r"\b[Dd]ate\b"
 }
 
-@st.cache_resource
-def load_model():
-    return ocr_predictor(pretrained=True)
+# @st.cache_resource
+# def load_model():
+#     return ocr_predictor(pretrained=True)
 
 def preprocess_image(image):
     if image.mode != 'RGB':
