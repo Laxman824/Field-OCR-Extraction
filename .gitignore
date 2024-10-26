@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
+data/output/*
+!data/output/.gitkeep
+data/sample_images/*
+!data/sample_images/.gitkeep
