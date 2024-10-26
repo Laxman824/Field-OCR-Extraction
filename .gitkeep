@@ -1,0 +1,2 @@
+touch ocr-app/data/output/.gitkeep
+touch ocr-app/data/sample_images/.gitkeep
