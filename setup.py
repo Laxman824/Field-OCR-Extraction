@@ -11,7 +11,7 @@ setup(
         "opencv-python-headless>=4.7.0.72",
         "numpy>=1.23.5",
     ],
-    author="Your Name",
+    author="Laxman",
     author_email="your.email@example.com",
     description="A Streamlit application for OCR processing",
     long_description=open("README.md").read(),
