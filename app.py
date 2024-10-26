@@ -60,13 +60,47 @@ FIELDS = {
 }
 
 # Add sidebar with preprocessing options
+# Add this at the sidebar section of your code, replace the existing sidebar code
+
 with st.sidebar:
     st.header("Preprocessing Options")
-    resize_factor = st.slider("Resize Factor", 0.1, 2.0, 1.0, help="Adjust image size")
-    enhance_contrast = st.slider("Contrast Enhancement", 0.5, 2.0, 1.0, help="Adjust image contrast")
+    
+    # Add a restore defaults button
+    if st.button("Restore Defaults"):
+        st.session_state.resize_factor = 1.0
+        st.session_state.contrast = 1.0
+    
+    # Initialize session state if not exists
+    if 'resize_factor' not in st.session_state:
+        st.session_state.resize_factor = 1.0
+    if 'contrast' not in st.session_state:
+        st.session_state.contrast = 1.0
+    
+    # Sliders with session state
+    resize_factor = st.slider(
+        "Resize Factor", 
+        0.1, 2.0, 
+        st.session_state.resize_factor,
+        help="Adjust image size"
+    )
+    enhance_contrast = st.slider(
+        "Contrast Enhancement", 
+        0.5, 2.0, 
+        st.session_state.contrast,
+        help="Adjust image contrast"
+    )
+    
+    # Update session state
+    st.session_state.resize_factor = resize_factor
+    st.session_state.contrast = enhance_contrast
+    
+    # Other options
     denoise = st.checkbox("Remove Noise", False, help="Apply noise reduction")
-    show_confidence = st.checkbox("Show Confidence Scores", False, help="Display confidence scores for extracted fields")
+    show_confidence = st.checkbox("Show Confidence Scores", False, 
+                                help="Display confidence scores for extracted fields")
 
+
+    
 @st.cache_resource(ttl=3600)
 def load_model():
     try:
