@@ -2,8 +2,8 @@ Project: Advanced Document OCR System
 Developed a web application that processes Image documents to extract and get Fields from image footnotes into structured Json files.
 [Visit the PDF Processing App](https://field-ocr-extraction-cams.streamlit.app/)
 
-<img src="assets/website.png" alt="Project Screenshot" width="600"/>
-<img src="assets/working.jpg" alt="Project Screenshot" width="600"/>
+<img src="https://github.com/Laxman824/Field-OCR-Extraction/tree/main/sample%20images/field.png" alt="Project Screenshot" width="600"/>
+
 
 - Developed an intelligent document processing system using Python, Streamlit, and Computer Vision
 - Technologies Used:
