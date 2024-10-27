@@ -418,274 +418,274 @@ class DocumentProcessor:
             st.code(traceback.format_exc())
             return None
 
-def _extract_text(self, image: Image.Image) -> str:
-        """Extract text from image using OCR"""
-        img_np = np.array(image)
-        result = self.model([img_np])
-        
-        # Combine all text with position information
-        text_blocks = []
-        for block in result.pages[0].blocks:
-            for line in block.lines:
-                line_text = " ".join([word.value for word in line.words])
-                text_blocks.append(line_text)
-        
-        return "\n".join(text_blocks)
-
-    def _update_history(self, results: Dict):
-        """Update processing history"""
-        self.history.append({
-            'timestamp': datetime.now().isoformat(),
-            'results': results
-        })
-        if len(self.history) > 100:  # Keep last 100 entries
-            self.history.pop(0)
-
-def create_visualization(results: Dict):
-    """Create visualization of extraction results"""
-    if not results:
-        return
-
-    st.header("Extraction Results")
-    
-    # Create tabs for different views
-    tabs = st.tabs(["Detailed View", "Summary View", "JSON View"])
-    
-    with tabs[0]:
-        create_detailed_view(results)
-    
-    with tabs[1]:
-        create_summary_view(results)
-    
-    with tabs[2]:
-        create_json_view(results)
-
-def create_detailed_view(results: Dict):
-    """Create detailed view of results"""
-    st.subheader("Field Extraction Results")
-    
-    # Group fields by category
-    categorized_fields = {}
-    doc_type = results.get('document_type')
-    if doc_type and doc_type in DOCUMENT_TEMPLATES:
-        template = DOCUMENT_TEMPLATES[doc_type]
-        
-        for field_name, value in results['extracted_fields'].items():
-            if field_name in template.fields:
-                field = template.fields[field_name]
-                category = field.category
-                if category not in categorized_fields:
-                    categorized_fields[category] = []
-                categorized_fields[category].append((field_name, value, 
-                                                  results['confidence_scores'].get(field_name, 0),
-                                                  results['validation_results'].get(field_name, False)))
-    
-    # Display fields by category
-    for category, fields in categorized_fields.items():
-        st.write(f"**{category}**")
-        
-        for field_name, value, confidence, is_valid in fields:
-            col1, col2, col3, col4 = st.columns([3, 3, 2, 1])
+    def _extract_text(self, image: Image.Image) -> str:
+            """Extract text from image using OCR"""
+            img_np = np.array(image)
+            result = self.model([img_np])
             
-            with col1:
-                st.write(f"*{field_name}:*")
+            # Combine all text with position information
+            text_blocks = []
+            for block in result.pages[0].blocks:
+                for line in block.lines:
+                    line_text = " ".join([word.value for word in line.words])
+                    text_blocks.append(line_text)
             
-            with col2:
-                st.write(value)
-            
-            with col3:
-                # Create color gradient based on confidence
-                color = get_confidence_color(confidence)
-                st.markdown(
-                    f'<div style="background: {color}; padding: 5px; '
-                    f'border-radius: 5px;">{confidence:.2%}</div>',
-                    unsafe_allow_html=True
-                )
-            
-            with col4:
-                if is_valid:
-                    st.markdown('✅')
-                else:
-                    st.markdown('❌')
-    
-    # Display warnings
-    if results.get('warnings'):
-        st.subheader("Warnings")
-        for warning in results['warnings']:
-            st.warning(warning)
+            return "\n".join(text_blocks)
 
-def create_summary_view(results: Dict):
-    """Create summary view of results"""
-    st.subheader("Summary")
-    
-    # Create summary metrics
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        total_fields = len(results['extracted_fields'])
-        st.metric("Total Fields Extracted", total_fields)
-    
-    with col2:
-        valid_fields = sum(results['validation_results'].values())
-        st.metric("Valid Fields", f"{valid_fields}/{total_fields}")
-    
-    with col3:
-        avg_confidence = np.mean(list(results['confidence_scores'].values()))
-        st.metric("Average Confidence", f"{avg_confidence:.2%}")
-    
-    # Create confidence distribution chart
-    confidences = list(results['confidence_scores'].values())
-    if confidences:
-        st.subheader("Confidence Distribution")
-        fig = create_confidence_chart(confidences)
-        st.plotly_chart(fig)
+        def _update_history(self, results: Dict):
+            """Update processing history"""
+            self.history.append({
+                'timestamp': datetime.now().isoformat(),
+                'results': results
+            })
+            if len(self.history) > 100:  # Keep last 100 entries
+                self.history.pop(0)
 
-def create_json_view(results: Dict):
-    """Create JSON view of results"""
-    st.subheader("JSON Output")
-    
-    # Create formatted JSON
-    json_output = json.dumps(results, indent=2)
-    st.code(json_output, language='json')
-    
-    # Add download button
-    st.download_button(
-        label="Download JSON",
-        data=json_output,
-        file_name=f"extraction_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-        mime="application/json"
-    )
+    def create_visualization(results: Dict):
+        """Create visualization of extraction results"""
+        if not results:
+            return
 
-def get_confidence_color(confidence: float) -> str:
-    """Get color for confidence score"""
-    if confidence >= 0.8:
-        return "linear-gradient(90deg, #28a745 0%, #a8e0b4 100%)"
-    elif confidence >= 0.6:
-        return "linear-gradient(90deg, #ffc107 0%, #ffe8a1 100%)"
-    else:
-        return "linear-gradient(90deg, #dc3545 0%, #f5c6cb 100%)"
-
-def create_confidence_chart(confidences: List[float]):
-    """Create confidence distribution chart"""
-    import plotly.graph_objects as go
-    
-    fig = go.Figure(data=[go.Histogram(x=confidences, nbinsx=10)])
-    fig.update_layout(
-        title="Confidence Score Distribution",
-        xaxis_title="Confidence Score",
-        yaxis_title="Count",
-        showlegend=False
-    )
-    return fig
-
-def main():
-    st.set_page_config(page_title="Enhanced Document OCR", layout="wide")
-    
-    # Initialize session state
-    if 'processor' not in st.session_state:
-        st.session_state.processor = DocumentProcessor()
-    
-    # Create sidebar
-    st.sidebar.title("Document Processing")
-    
-    # Document type selection
-    doc_types = ["Auto Detect"] + list(DOCUMENT_TEMPLATES.keys())
-    selected_type = st.sidebar.selectbox(
-        "Select Document Type",
-        doc_types,
-        help="Select specific document type or let system detect automatically"
-    )
-    
-    # Field selection based on document type
-    selected_fields = {}
-    if selected_type != "Auto Detect":
-        template = DOCUMENT_TEMPLATES[selected_type]
+        st.header("Extraction Results")
         
-        st.sidebar.subheader("Required Fields")
-        for field_name in template.required_fields:
-            if field_name in template.fields:
-                field = template.fields[field_name]
-                selected_fields[field_name] = st.sidebar.checkbox(
-                    field.name,
-                    value=True,
-                    disabled=True,
-                    help=f"{field.description}\nExample: {field.example}"
-                )
+        # Create tabs for different views
+        tabs = st.tabs(["Detailed View", "Summary View", "JSON View"])
         
-        st.sidebar.subheader("Optional Fields")
-        for field_name in template.optional_fields:
-            if field_name in template.fields:
-                field = template.fields[field_name]
-                selected_fields[field_name] = st.sidebar.checkbox(
-                    field.name,
-                    value=False,
-                    help=f"{field.description}\nExample: {field.example}"
-                )
-    
-    # Processing options
-    st.sidebar.subheader("Processing Options")
-    confidence_threshold = st.sidebar.slider(
-        "Confidence Threshold",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.5,
-        help="Minimum confidence score for field extraction"
-    )
-    
-    # Main content
-    st.title("Enhanced Document OCR Processing")
-    st.write("Upload documents to extract and validate information")
-    
-    # File upload
-    uploaded_files = st.file_uploader(
-        "Choose document files",
-        type=['png', 'jpg', 'jpeg', 'pdf'],
-        accept_multiple_files=True,
-        help="Upload one or more documents for processing"
-    )
-    
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            st.subheader(f"Processing: {uploaded_file.name}")
+        with tabs[0]:
+            create_detailed_view(results)
+        
+        with tabs[1]:
+            create_summary_view(results)
+        
+        with tabs[2]:
+            create_json_view(results)
+
+    def create_detailed_view(results: Dict):
+        """Create detailed view of results"""
+        st.subheader("Field Extraction Results")
+        
+        # Group fields by category
+        categorized_fields = {}
+        doc_type = results.get('document_type')
+        if doc_type and doc_type in DOCUMENT_TEMPLATES:
+            template = DOCUMENT_TEMPLATES[doc_type]
             
-            try:
-                # Read image
-                image = Image.open(uploaded_file)
+            for field_name, value in results['extracted_fields'].items():
+                if field_name in template.fields:
+                    field = template.fields[field_name]
+                    category = field.category
+                    if category not in categorized_fields:
+                        categorized_fields[category] = []
+                    categorized_fields[category].append((field_name, value, 
+                                                    results['confidence_scores'].get(field_name, 0),
+                                                    results['validation_results'].get(field_name, False)))
+        
+        # Display fields by category
+        for category, fields in categorized_fields.items():
+            st.write(f"**{category}**")
+            
+            for field_name, value, confidence, is_valid in fields:
+                col1, col2, col3, col4 = st.columns([3, 3, 2, 1])
                 
-                # Process document
-                results = st.session_state.processor.process_document(
-                    image,
-                    selected_fields,
-                    confidence_threshold
-                )
+                with col1:
+                    st.write(f"*{field_name}:*")
                 
-                if results:
-                    # Create visualization
-                    create_visualization(results)
+                with col2:
+                    st.write(value)
+                
+                with col3:
+                    # Create color gradient based on confidence
+                    color = get_confidence_color(confidence)
+                    st.markdown(
+                        f'<div style="background: {color}; padding: 5px; '
+                        f'border-radius: 5px;">{confidence:.2%}</div>',
+                        unsafe_allow_html=True
+                    )
+                
+                with col4:
+                    if is_valid:
+                        st.markdown('✅')
+                    else:
+                        st.markdown('❌')
+        
+        # Display warnings
+        if results.get('warnings'):
+            st.subheader("Warnings")
+            for warning in results['warnings']:
+                st.warning(warning)
+
+    def create_summary_view(results: Dict):
+        """Create summary view of results"""
+        st.subheader("Summary")
+        
+        # Create summary metrics
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            total_fields = len(results['extracted_fields'])
+            st.metric("Total Fields Extracted", total_fields)
+        
+        with col2:
+            valid_fields = sum(results['validation_results'].values())
+            st.metric("Valid Fields", f"{valid_fields}/{total_fields}")
+        
+        with col3:
+            avg_confidence = np.mean(list(results['confidence_scores'].values()))
+            st.metric("Average Confidence", f"{avg_confidence:.2%}")
+        
+        # Create confidence distribution chart
+        confidences = list(results['confidence_scores'].values())
+        if confidences:
+            st.subheader("Confidence Distribution")
+            fig = create_confidence_chart(confidences)
+            st.plotly_chart(fig)
+
+    def create_json_view(results: Dict):
+        """Create JSON view of results"""
+        st.subheader("JSON Output")
+        
+        # Create formatted JSON
+        json_output = json.dumps(results, indent=2)
+        st.code(json_output, language='json')
+        
+        # Add download button
+        st.download_button(
+            label="Download JSON",
+            data=json_output,
+            file_name=f"extraction_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json"
+        )
+
+    def get_confidence_color(confidence: float) -> str:
+        """Get color for confidence score"""
+        if confidence >= 0.8:
+            return "linear-gradient(90deg, #28a745 0%, #a8e0b4 100%)"
+        elif confidence >= 0.6:
+            return "linear-gradient(90deg, #ffc107 0%, #ffe8a1 100%)"
+        else:
+            return "linear-gradient(90deg, #dc3545 0%, #f5c6cb 100%)"
+
+    def create_confidence_chart(confidences: List[float]):
+        """Create confidence distribution chart"""
+        import plotly.graph_objects as go
+        
+        fig = go.Figure(data=[go.Histogram(x=confidences, nbinsx=10)])
+        fig.update_layout(
+            title="Confidence Score Distribution",
+            xaxis_title="Confidence Score",
+            yaxis_title="Count",
+            showlegend=False
+        )
+        return fig
+
+    def main():
+        st.set_page_config(page_title="Enhanced Document OCR", layout="wide")
+        
+        # Initialize session state
+        if 'processor' not in st.session_state:
+            st.session_state.processor = DocumentProcessor()
+        
+        # Create sidebar
+        st.sidebar.title("Document Processing")
+        
+        # Document type selection
+        doc_types = ["Auto Detect"] + list(DOCUMENT_TEMPLATES.keys())
+        selected_type = st.sidebar.selectbox(
+            "Select Document Type",
+            doc_types,
+            help="Select specific document type or let system detect automatically"
+        )
+        
+        # Field selection based on document type
+        selected_fields = {}
+        if selected_type != "Auto Detect":
+            template = DOCUMENT_TEMPLATES[selected_type]
+            
+            st.sidebar.subheader("Required Fields")
+            for field_name in template.required_fields:
+                if field_name in template.fields:
+                    field = template.fields[field_name]
+                    selected_fields[field_name] = st.sidebar.checkbox(
+                        field.name,
+                        value=True,
+                        disabled=True,
+                        help=f"{field.description}\nExample: {field.example}"
+                    )
+            
+            st.sidebar.subheader("Optional Fields")
+            for field_name in template.optional_fields:
+                if field_name in template.fields:
+                    field = template.fields[field_name]
+                    selected_fields[field_name] = st.sidebar.checkbox(
+                        field.name,
+                        value=False,
+                        help=f"{field.description}\nExample: {field.example}"
+                    )
+        
+        # Processing options
+        st.sidebar.subheader("Processing Options")
+        confidence_threshold = st.sidebar.slider(
+            "Confidence Threshold",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            help="Minimum confidence score for field extraction"
+        )
+        
+        # Main content
+        st.title("Enhanced Document OCR Processing")
+        st.write("Upload documents to extract and validate information")
+        
+        # File upload
+        uploaded_files = st.file_uploader(
+            "Choose document files",
+            type=['png', 'jpg', 'jpeg', 'pdf'],
+            accept_multiple_files=True,
+            help="Upload one or more documents for processing"
+        )
+        
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                st.subheader(f"Processing: {uploaded_file.name}")
+                
+                try:
+                    # Read image
+                    image = Image.open(uploaded_file)
                     
-                    # Add processing history
-                    if st.sidebar.checkbox("Show Processing History"):
-                        show_processing_history()
-                
-            except Exception as e:
-                st.error(f"Error processing {uploaded_file.name}: {str(e)}")
-                st.code(traceback.format_exc())
+                    # Process document
+                    results = st.session_state.processor.process_document(
+                        image,
+                        selected_fields,
+                        confidence_threshold
+                    )
+                    
+                    if results:
+                        # Create visualization
+                        create_visualization(results)
+                        
+                        # Add processing history
+                        if st.sidebar.checkbox("Show Processing History"):
+                            show_processing_history()
+                    
+                except Exception as e:
+                    st.error(f"Error processing {uploaded_file.name}: {str(e)}")
+                    st.code(traceback.format_exc())
 
-def show_processing_history():
-    """Show processing history"""
-    st.sidebar.subheader("Processing History")
-    
-    history = st.session_state.processor.history
-    if not history:
-        st.sidebar.write("No processing history available")
-        return
-    
-    for entry in reversed(history):
-        timestamp = datetime.fromisoformat(entry['timestamp'])
-        with st.sidebar.expander(f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')}"):
-            st.write(f"Document Type: {entry['results'].get('document_type', 'Unknown')}")
-            st.write(f"Fields Extracted: {len(entry['results'].get('extracted_fields', {}))}")
-            st.write(f"Warnings: {len(entry['results'].get('warnings', []))}")
+    def show_processing_history():
+        """Show processing history"""
+        st.sidebar.subheader("Processing History")
+        
+        history = st.session_state.processor.history
+        if not history:
+            st.sidebar.write("No processing history available")
+            return
+        
+        for entry in reversed(history):
+            timestamp = datetime.fromisoformat(entry['timestamp'])
+            with st.sidebar.expander(f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')}"):
+                st.write(f"Document Type: {entry['results'].get('document_type', 'Unknown')}")
+                st.write(f"Fields Extracted: {len(entry['results'].get('extracted_fields', {}))}")
+                st.write(f"Warnings: {len(entry['results'].get('warnings', []))}")
 
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()
