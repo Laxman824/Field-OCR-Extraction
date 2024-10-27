@@ -14,122 +14,6 @@ from datetime import datetime
 import tempfile
 import os
 
-# Document Templates and Field Definitions
-@dataclass
-class FieldValidation:
-    pattern: str
-    error_message: str
-    min_confidence: float = 0.5
-    required: bool = False
-    dependent_fields: List[str] = None
-
-@dataclass
-class DocumentField:
-    name: str
-    pattern: str
-    description: str
-    example: str
-    validation: FieldValidation
-    category: str
-    is_key_field: bool = False
-
-@dataclass
-class DocumentTemplate:
-    name: str
-    description: str
-    fields: Dict[str, DocumentField]
-    required_fields: List[str]
-    optional_fields: List[str]
-
-# Define document templates
-DOCUMENT_TEMPLATES = {
-    "bank_document": DocumentTemplate(
-        name="Bank Document",
-        description="Banking related documents like statements, cheques",
-        fields={
-            "ifsc_code": DocumentField(
-                name="IFSC Code",
-                pattern=r"\b[A-Z]{4}0[A-Z0-9]{6}\b",
-                description="Indian Financial System Code",
-                example="HDFC0000123",
-                validation=FieldValidation(
-                    pattern=r"^[A-Z]{4}0[A-Z0-9]{6}$",
-                    error_message="Invalid IFSC format",
-                    min_confidence=0.8,
-                    required=True
-                ),
-                category="Banking Details",
-                is_key_field=True
-            ),
-            "account_number": DocumentField(
-                name="Account Number",
-                pattern=r"\b\d{9,18}\b",
-                description="Bank Account Number",
-                example="1234567890",
-                validation=FieldValidation(
-                    pattern=r"^\d{9,18}$",
-                    error_message="Invalid account number format",
-                    min_confidence=0.9,
-                    required=True
-                ),
-                category="Banking Details",
-                is_key_field=True
-            ),
-            "bank_name": DocumentField(
-                name="Bank Name",
-                pattern=r"\b[A-Z]+\s*BANK\b",
-                description="Name of the Bank",
-                example="HDFC BANK",
-                validation=FieldValidation(
-                    pattern=r"^[A-Za-z\s]{2,50}$",
-                    error_message="Invalid bank name",
-                    min_confidence=0.7,
-                    required=True
-                ),
-                category="Banking Details",
-                is_key_field=True
-            )
-        },
-        required_fields=["ifsc_code", "account_number", "bank_name"],
-        optional_fields=["branch_name", "account_type"]
-    ),
-    "invoice": DocumentTemplate(
-        name="Invoice",
-        description="Invoice and billing documents",
-        fields={
-            "invoice_number": DocumentField(
-                name="Invoice Number",
-                pattern=r"\b(INV|INVOICE)[-/#]?\d+\b",
-                description="Unique invoice identifier",
-                example="INV-12345",
-                validation=FieldValidation(
-                    pattern=r"^(?:INV|INVOICE)?[-/#]?\d+$",
-                    error_message="Invalid invoice number format",
-                    min_confidence=0.8,
-                    required=True
-                ),
-                category="Invoice Details",
-                is_key_field=True
-            ),
-            "amount": DocumentField(
-                name="Amount",
-                pattern=r"\b₹?\s*\d+(?:,\d+)*(?:\.\d{2})?\b",
-                description="Invoice amount",
-                example="₹1,234.56",
-                validation=FieldValidation(
-                    pattern=r"^₹?\s*\d+(?:,\d+)*(?:\.\d{2})?$",
-                    error_message="Invalid amount format",
-                    min_confidence=0.9,
-                    required=True
-                ),
-                category="Invoice Details",
-                is_key_field=True
-            )
-        },
-        required_fields=["invoice_number", "amount", "date"],
-        optional_fields=["tax_amount", "total_amount"]
-    )
-}
 
 class DocumentProcessor:
     def __init__(self):
@@ -602,3 +486,122 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+# Document Templates and Field Definitions
+@dataclass
+class FieldValidation:
+    pattern: str
+    error_message: str
+    min_confidence: float = 0.5
+    required: bool = False
+    dependent_fields: List[str] = None
+
+@dataclass
+class DocumentField:
+    name: str
+    pattern: str
+    description: str
+    example: str
+    validation: FieldValidation
+    category: str
+    is_key_field: bool = False
+
+@dataclass
+class DocumentTemplate:
+    name: str
+    description: str
+    fields: Dict[str, DocumentField]
+    required_fields: List[str]
+    optional_fields: List[str]
+
+# Define document templates
+DOCUMENT_TEMPLATES = {
+    "bank_document": DocumentTemplate(
+        name="Bank Document",
+        description="Banking related documents like statements, cheques",
+        fields={
+            "ifsc_code": DocumentField(
+                name="IFSC Code",
+                pattern=r"\b[A-Z]{4}0[A-Z0-9]{6}\b",
+                description="Indian Financial System Code",
+                example="HDFC0000123",
+                validation=FieldValidation(
+                    pattern=r"^[A-Z]{4}0[A-Z0-9]{6}$",
+                    error_message="Invalid IFSC format",
+                    min_confidence=0.8,
+                    required=True
+                ),
+                category="Banking Details",
+                is_key_field=True
+            ),
+            "account_number": DocumentField(
+                name="Account Number",
+                pattern=r"\b\d{9,18}\b",
+                description="Bank Account Number",
+                example="1234567890",
+                validation=FieldValidation(
+                    pattern=r"^\d{9,18}$",
+                    error_message="Invalid account number format",
+                    min_confidence=0.9,
+                    required=True
+                ),
+                category="Banking Details",
+                is_key_field=True
+            ),
+            "bank_name": DocumentField(
+                name="Bank Name",
+                pattern=r"\b[A-Z]+\s*BANK\b",
+                description="Name of the Bank",
+                example="HDFC BANK",
+                validation=FieldValidation(
+                    pattern=r"^[A-Za-z\s]{2,50}$",
+                    error_message="Invalid bank name",
+                    min_confidence=0.7,
+                    required=True
+                ),
+                category="Banking Details",
+                is_key_field=True
+            )
+        },
+        required_fields=["ifsc_code", "account_number", "bank_name"],
+        optional_fields=["branch_name", "account_type"]
+    ),
+    "invoice": DocumentTemplate(
+        name="Invoice",
+        description="Invoice and billing documents",
+        fields={
+            "invoice_number": DocumentField(
+                name="Invoice Number",
+                pattern=r"\b(INV|INVOICE)[-/#]?\d+\b",
+                description="Unique invoice identifier",
+                example="INV-12345",
+                validation=FieldValidation(
+                    pattern=r"^(?:INV|INVOICE)?[-/#]?\d+$",
+                    error_message="Invalid invoice number format",
+                    min_confidence=0.8,
+                    required=True
+                ),
+                category="Invoice Details",
+                is_key_field=True
+            ),
+            "amount": DocumentField(
+                name="Amount",
+                pattern=r"\b₹?\s*\d+(?:,\d+)*(?:\.\d{2})?\b",
+                description="Invoice amount",
+                example="₹1,234.56",
+                validation=FieldValidation(
+                    pattern=r"^₹?\s*\d+(?:,\d+)*(?:\.\d{2})?$",
+                    error_message="Invalid amount format",
+                    min_confidence=0.9,
+                    required=True
+                ),
+                category="Invoice Details",
+                is_key_field=True
+            )
+        },
+        required_fields=["invoice_number", "amount", "date"],
+        optional_fields=["tax_amount", "total_amount"]
+    )
+}
+
