@@ -2,6 +2,8 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 import cv2
+from utils.file_processing import DocumentProcessor
+from utils.field_extraction import FieldExtractor
 import json
 import re
 from doctr.models import ocr_predictor
@@ -291,10 +293,11 @@ def main():
     model = load_model()
 
     # File upload
+    # Add file type handling  
     uploaded_file = st.file_uploader(
-        "Choose an image file",
-        type=['png', 'jpg', 'jpeg'],
-        help="Upload a clear image of your document"
+        "Choose files",
+        type=['pdf', 'png', 'jpg', 'jpeg'],
+        accept_multiple_files=True
     )
 
     if uploaded_file is not None:

@@ -5,6 +5,11 @@ from config.field_patterns import FIELDS
 
 def process_image(image, ocr_model):
     try:
+
+        # Enhanced batch processing
+        if isinstance(image, list):
+            return batch_process_images(image, ocr_model)
+
         image = preprocess_image(image)
         img_np = np.array(image)
         result = ocr_model([img_np])

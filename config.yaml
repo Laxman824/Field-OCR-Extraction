@@ -1,17 +1,28 @@
 app:
-  title: "Document OCR Processing"
-  description: "Upload an image to extract text and identify fields"
-  max_file_size: 5
+  title: "Advanced Document OCR Processing"
+  description: "Extract information from documents with advanced processing capabilities"
+  version: "2.0.0"
+  max_file_size: 10  # in MB
   allowed_extensions:
+    - pdf
     - jpg
     - jpeg
     - png
 
-model:
-  cache_dir: "./model_cache"
-  pretrained: true
+processing:
+  batch_size: 4
+  confidence_threshold: 0.6
+  enable_preprocessing: true
+  max_workers: 4
+
+ui:
+  theme: "light"
+  custom_css: true
+  show_confidence_scores: true
+  enable_dark_mode: true
 
 output:
   save_directory: "./data/output"
   save_visualizations: true
   save_json: true
+  report_format: "pdf"
