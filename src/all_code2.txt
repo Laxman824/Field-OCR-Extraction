@@ -1,0 +1,171 @@
+.gitignore========
+
+venv/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
+data/output/*
+!data/output/.gitkeep
+data/sample_images/*
+!data/sample_images/.gitkeep
+
+.gitkeep=======
+touch ocr-app/data/output/.gitkeep
+touch ocr-app/data/sample_images/.gitkeep
+
+config.yaml
+app:
+  title: "Document OCR Processing"
+  description: "Upload an image to extract text and identify fields"
+  max_file_size: 5
+  allowed_extensions:
+    - jpg
+    - jpeg
+    - png
+
+model:
+  cache_dir: "./model_cache"
+  pretrained: true
+
+output:
+  save_directory: "./data/output"
+  save_visualizations: true
+  save_json: true
+
+
+======install_dependencies.sh======
+
+#!/bin/bash
+
+# Update package list
+echo "Updating package list..."
+apt-get update
+
+# Install system dependencies
+echo "Installing system dependencies..."
+apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgl1 \
+    python3-opencv
+
+# Install Python packages
+echo "Installing Python packages..."
+pip uninstall -y opencv-python cv2 opencv-python-headless
+pip install opencv-python-headless==4.7.0.72
+
+echo "Dependencies installation complete!"
+
+=======install.sh======
+
+#!/bin/bash
+
+echo "Starting installation process..."
+
+# Check Python version
+python_version=$(python3 --version 2>&1 | awk '{print $2}')
+echo "Python version: $python_version"
+
+# Install system dependencies
+echo "Installing system dependencies..."
+sudo apt-get update
+sudo apt-get install -y \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    python3-distutils \
+    python3-setuptools \
+    tesseract-ocr \
+    build-essential \
+    libgl1-mesa-glx
+
+# Create and activate virtual environment
+echo "Creating virtual environment..."
+python3 -m venv venv
+source venv/bin/activate
+
+# Upgrade pip
+echo "Upgrading pip..."
+pip install --upgrade pip setuptools wheel
+
+# Install torch first
+echo "Installing PyTorch..."
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Install core dependencies one by one
+echo "Installing core dependencies..."
+pip install numpy==1.23.5
+pip install pillow==9.5.0
+pip install opencv-python-headless==4.7.0.72
+pip install streamlit==1.22.0
+
+# Install DocTR
+echo "Installing DocTR..."
+pip install "python-doctr[torch]"
+
+# Install other dependencies
+echo "Installing additional dependencies..."
+pip install pytesseract==0.3.10
+pip install transformers
+pip install datasets
+pip install seqeval
+pip install pyarrow==14.0.1
+pip install python-dotenv
+pip install pyyaml
+
+echo "Installation complete!"
+echo "Activate the virtual environment with: source venv/bin/activate"
+
+===packages.txt====
+libgl1-mesa-glx
+libglib2.0-0
+libsm6
+libxext6
+libxrender-dev
+python3-opencv
+tesseract-ocr
+
+===requirements.txt===
+# Core dependencies
+numpy>=1.23.5
+pillow>=9.5.0
+opencv-python-headless>=4.7.0.72
+streamlit>=1.22.0
+
+# OCR and ML dependencies
+python-doctr[torch]>=0.6.0
+pytesseract>=0.3.10
+transformers
+datasets
+seqeval
+pyarrow>=14.0.1
+
+# Development dependencies
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+====setup.py=====
+from setuptools import setup, find_packages
+
+setup(
+    name="ocr-app",
+    version="0.1.0",
+    packages=find_packages(),
+    install_requires=[
+        "streamlit>=1.22.0",
+        "python-doctr[torch]>=0.6.0",
+        "pillow>=9.5.0",
+        "opencv-python-headless>=4.7.0.72",
+        "numpy>=1.23.5",
+    ],
+    author="Laxman",
+    author_email="your.email@example.com",
+    description="A Streamlit application for OCR processing",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
+)
+ALL DONE FULL CODE IS SHARED 
