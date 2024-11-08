@@ -1,11 +1,12 @@
 Field extraction additional changes 
 
-accuracy is good 
+
 2. on multiple docs at a time it should work
 3. novelty
 4. accept all input formats  tiff, png, jpg, pdf etc..
-5. fields shouldn't be hardcode, while the fields should be displayed from extracted text and then user should be able to select any of those.
-
+5. fields shouldn't be hardcode, while the fields should be displayed from image  extracted text and then user should be able to select any of those.
+for example now we are selecting  few fields which are Mobile number,PAN ,Folio Number,Email,Address etc. from the scanned images i want it to updatesuch that the extracted fields or text from image has to be 
+showed for a user to select 
 6.to improve the text extracted is good enough by not relying on the ocr
 Once text has been extracted from images using OCR or machine learning models, you might want to pre-process the text with natural language algorithms in order to correct formatting or information loss issues which might have occurred during the conversion. Moreover, you can leverage NLP to do additional processing on top of the text for example to do a sentiment analysis
 
