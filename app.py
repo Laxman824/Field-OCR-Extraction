@@ -360,11 +360,11 @@ from typing import Dict, List, Tuple, Optional
 import yaml
 
 # Import custom modules
-from utils.file_processing import DocumentProcessor
+
 from utils.field_extraction import FieldExtractor
 from models.model_loader import load_model
 from config.field_patterns import FIELD_CATEGORIES
-
+from utils.file_processing import DocumentProcessor
 class OCREnhancedApp:
     def __init__(self):
         """Initialize the enhanced OCR application"""
