@@ -142,8 +142,8 @@ class OCREnhancedApp:
             if st.button("🔄 Clear All"):
                 st.session_state.processed_files = []
                 st.session_state.batch_results = {}
-                st.experimental_rerun()
-
+                st.rerun()  # Updated from experimental_rerun
+                
             if st.button("📊 Generate Report"):
                 self.generate_report()
 
@@ -167,52 +167,73 @@ class OCREnhancedApp:
                 if file.name.lower().endswith('.pdf'):
                     images = self.doc_processor.convert_pdf_to_images(file)
                 else:
-                    images = [Image.open(file)]
+                    # Open image and ensure it's RGB
+                    image = Image.open(file)
+                    if image.mode != 'RGB':
+                        image = image.convert('RGB')
+                    images = [image]
 
                 # Process each image
                 for page_idx, image in enumerate(images):
-                    if settings['enable_preprocessing']:
-                        image = self.doc_processor.enhance_image(image)
+                    try:
+                        if settings['enable_preprocessing']:
+                            image = self.doc_processor.enhance_image(image)
 
-                    # Process image and extract fields
-                    result = self.process_single_image(
-                        image, 
-                        settings['selected_fields'],
-                        settings['confidence_threshold']
-                    )
+                        # Process image and extract fields
+                        result = self.process_single_image(
+                            image, 
+                            settings['selected_fields'],
+                            settings['confidence_threshold']
+                        )
 
-                    processed_files.append({
-                        'filename': f"{file.name}_page{page_idx + 1}",
-                        'result': result
-                    })
+                        processed_files.append({
+                            'filename': f"{file.name}_page{page_idx + 1}" if len(images) > 1 else file.name,
+                            'result': result
+                        })
+
+                    except Exception as e:
+                        st.error(f"Error processing page {page_idx + 1} of {file.name}: {str(e)}")
+                        st.code(traceback.format_exc())
 
             except Exception as e:
-                st.error(f"Error processing {file.name}: {str(e)}")
+                st.error(f"Error processing file {file.name}: {str(e)}")
                 st.code(traceback.format_exc())
 
         progress_bar.empty()
         status_text.empty()
         return processed_files
-
+        
     def process_single_image(self, image: Image.Image, selected_fields: Dict, confidence_threshold: float):
         """Process a single image and extract fields"""
         try:
-            # Convert image to array
+            # Ensure image is in RGB mode
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Convert image to numpy array
             img_np = np.array(image)
             
+            # Ensure image is 3-channel RGB
+            if len(img_np.shape) == 2:  # If grayscale
+                img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
+            elif len(img_np.shape) == 3 and img_np.shape[2] == 4:  # If RGBA
+                img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
+                
             # OCR processing
             result = self.model([img_np])
             
             # Extract fields
             extracted_fields = {}
-            for field_name, is_selected in selected_fields.items():
-                if is_selected:
-                    value, confidence = self.field_extractor.extract_with_context(
-                        result.pages[0].get_text(),
-                        field_name
-                    )
-                    if value and confidence >= confidence_threshold:
-                        extracted_fields[field_name] = (value, confidence)
+            if result and result.pages:
+                text = result.pages[0].get_text()
+                for field_name, is_selected in selected_fields.items():
+                    if is_selected:
+                        value, confidence = self.field_extractor.extract_with_context(
+                            text,
+                            field_name
+                        )
+                        if value and confidence >= confidence_threshold:
+                            extracted_fields[field_name] = (value, confidence)
 
             return {
                 'extracted_fields': extracted_fields,
@@ -221,7 +242,12 @@ class OCREnhancedApp:
 
         except Exception as e:
             st.error(f"Error in image processing: {str(e)}")
-            return None
+            st.error(f"Full error: {traceback.format_exc()}")
+            return {
+                'extracted_fields': {},
+                'ocr_result': None
+            }
+            
 
     def display_results(self, processed_files: List):
         """Display processed results with enhanced visualization"""
