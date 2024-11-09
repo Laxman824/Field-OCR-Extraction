@@ -29,14 +29,14 @@ class DocumentProcessor:
 
     @staticmethod
     @st.cache_data  # Cache the conversion results
-    def convert_pdf_to_images(pdf_file: Union[str, io.BytesIO]) -> List[Image.Image]:
+    def convert_pdf_to_images(_pdf_file: Union[str, io.BytesIO]) -> List[Image.Image]:
         """Convert PDF file to list of PIL Images"""
         try:
-            if isinstance(pdf_file, str):
-                pdf_document = fitz.open(pdf_file)
+            if isinstance(_pdf_file, str):
+                pdf_document = fitz.open(_pdf_file)
             else:
                 with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
-                    tmp.write(pdf_file.getvalue())
+                    tmp.write(_pdf_file.getvalue())
                     tmp_path = tmp.name
                 pdf_document = fitz.open(tmp_path)
                 os.unlink(tmp_path)
@@ -56,11 +56,11 @@ class DocumentProcessor:
 
     @staticmethod
     @st.cache_data  # Cache preprocessing results
-    def enhance_image(image: Image.Image) -> Image.Image:
+    def enhance_image(_image: Image.Image) -> Image.Image:
         """Enhanced image preprocessing"""
         try:
             # Convert to numpy array
-            img_array = np.array(image)
+            img_array = np.array(_image)
             
             # Convert to grayscale if RGB
             if len(img_array.shape) == 3:
@@ -87,7 +87,7 @@ class DocumentProcessor:
             
         except Exception as e:
             st.error(f"Error enhancing image: {str(e)}")
-            return image
+            return _image
 
     @staticmethod
     def determine_skew(image: np.ndarray) -> float:
@@ -110,3 +110,13 @@ class DocumentProcessor:
             borderMode=cv2.BORDER_REPLICATE
         )
         return rotated
+
+    @staticmethod
+    def batch_process_images(images: List[Image.Image], process_func, batch_size: int = 4) -> List:
+        """Process multiple images in batches"""
+        results = []
+        for i in range(0, len(images), batch_size):
+            batch = images[i:i + batch_size]
+            batch_results = process_func(batch)
+            results.extend(batch_results)
+        return results
