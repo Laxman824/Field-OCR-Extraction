@@ -7,9 +7,10 @@
 # from models.model_loader import load_model
 # from config.field_patterns import FIELD_CATEGORIES
 # Get the absolute path of the current directory
-current_dir = os.path.dirname(os.path.abspath(__file__))
 import os 
 import sys
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
 # Add the src directory to the Python path
 src_dir = os.path.join(current_dir, 'src')
 print(src_dir)
