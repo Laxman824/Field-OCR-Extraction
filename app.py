@@ -2,7 +2,7 @@
 import os 
 import sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
-import io
+
 # Add the src directory to the Python path
 src_dir = os.path.join(current_dir, 'src')
 print(src_dir)
@@ -701,16 +701,11 @@ class OCREnhancedApp:
         return processed_files
 
     def process_single_image(self, image: Image.Image, selected_fields: Dict, confidence_threshold: float):
-        """Process a single image with visualization support"""
+        """Process a single image and extract fields"""
         try:
             # Ensure image is in RGB mode
             if image.mode != 'RGB':
                 image = image.convert('RGB')
-            
-            # Save original image data
-            img_buffer = io.BytesIO()
-            image.save(img_buffer, format='PNG')
-            img_data = img_buffer.getvalue()
             
             # Convert image to numpy array
             img_np = np.array(image)
@@ -718,6 +713,7 @@ class OCREnhancedApp:
             # OCR processing
             doc = self.model([img_np])
             
+            # Initialize result dictionary with only serializable data
             result_dict = {
                 'extracted_fields': {},
                 'words': [],
@@ -725,38 +721,28 @@ class OCREnhancedApp:
                 'image_size': {
                     'width': img_np.shape[1],
                     'height': img_np.shape[0]
-                },
-                'image_data': img_data  # Store original image
+                }
             }
             
             if doc and doc.pages:
                 page = doc.pages[0]
                 full_text = []
                 
-                # Process DocTR's output
+                # Process blocks, lines, and words
                 for block in page.blocks:
                     for line in block.lines:
                         line_words = []
                         for word in line.words:
-                            # Get denormalized coordinates
-                            x0, y0 = word.geometry[0]
-                            x1, y1 = word.geometry[1]
-                            box = [
-                                int(x0 * img_np.shape[1]),
-                                int(y0 * img_np.shape[0]),
-                                int(x1 * img_np.shape[1]),
-                                int(y1 * img_np.shape[0])
-                            ]
-                            
                             word_dict = {
                                 'text': word.value,
                                 'confidence': float(word.confidence),
-                                'box': box
+                                'bbox': [float(coord) for point in word.geometry for coord in point]
                             }
                             line_words.append(word_dict['text'])
                             result_dict['words'].append(word_dict)
                         full_text.append(' '.join(line_words))
                 
+                # Join all text
                 result_dict['full_text'] = '\n'.join(full_text)
                 
                 # Extract fields
@@ -781,9 +767,9 @@ class OCREnhancedApp:
                 'extracted_fields': {},
                 'words': [],
                 'full_text': '',
-                'image_size': {'width': 0, 'height': 0},
-                'image_data': None
+                'image_size': {'width': 0, 'height': 0}
             }
+
 
 
     def display_detailed_results(self, processed_files: List):
