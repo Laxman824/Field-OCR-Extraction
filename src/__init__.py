@@ -1,3 +1,4 @@
+cd field-ocr-extraction
 touch src/__init__.py
 touch src/utils/__init__.py
 touch src/models/__init__.py
