@@ -770,93 +770,16 @@ class OCREnhancedApp:
                 'image_size': {'width': 0, 'height': 0}
             }
 
-
-
     def display_detailed_results(self, processed_files: List):
-        """Display detailed results with interactive visualization"""
+        """Display detailed results for each file"""
         for idx, file_data in enumerate(processed_files):
             with st.expander(f"📄 {file_data['filename']}", expanded=idx == 0):
                 result = file_data.get('result', {})
                 if result:
-                    # Create tabs for different views
-                    tab1, tab2 = st.tabs(["📷 Document View", "📊 Extracted Data"])
-
-                    with tab1:
-                        col1, col2 = st.columns([1.5, 1])
-                        with col1:
-                            st.subheader("Original Document with Detection")
-                            # Display original image with bounding boxes
-                            if 'image_data' in result:
-                                # Convert image data for display
-                                img = Image.open(io.BytesIO(result['image_data']))
-                                img_array = np.array(img)
-                                
-                                # Create visualization layer
-                                viz_layer = img_array.copy()
-                                
-                                # Draw bounding boxes
-                                for word in result.get('words', []):
-                                    box = word['box']
-                                    confidence = word['confidence']
-                                    
-                                    # Color based on confidence (green for high, red for low)
-                                    color = (0, int(255 * confidence), 0) if confidence > 0.7 else \
-                                        (int(255 * (1-confidence)), 0, 0)
-                                    
-                                    # Draw rectangle
-                                    cv2.rectangle(viz_layer, 
-                                                (int(box[0]), int(box[1])), 
-                                                (int(box[2]), int(box[3])), 
-                                                color, 2)
-
-                                # Display image with bounding boxes
-                                st.image(viz_layer, use_column_width=True)
-                                
-                                # Add interactive layer using custom component
-                                st.markdown("""
-                                <style>
-                                .word-box:hover .tooltip {
-                                    display: block;
-                                }
-                                </style>
-                                """, unsafe_allow_html=True)
-                                
-                                # Create interactive boxes
-                                for word in result.get('words', []):
-                                    box = word['box']
-                                    st.markdown(f"""
-                                    <div class="word-box" 
-                                        style="position: absolute; 
-                                            left: {box[0]}px; 
-                                            top: {box[1]}px; 
-                                            width: {box[2]-box[0]}px; 
-                                            height: {box[3]-box[1]}px;">
-                                        <div class="tooltip" 
-                                            style="display: none; 
-                                                    position: absolute; 
-                                                    background: white; 
-                                                    padding: 5px; 
-                                                    border: 1px solid gray; 
-                                                    border-radius: 4px;">
-                                            {word['text']} ({word['confidence']:.2%})
-                                        </div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                        
-                        with col2:
-                            st.subheader("Detection Details")
-                            # Display word-level information
-                            if result.get('words'):
-                                word_df = pd.DataFrame([
-                                    {
-                                        'Text': word['text'],
-                                        'Confidence': f"{word['confidence']:.2%}"
-                                    }
-                                    for word in result['words']
-                                ])
-                                st.dataframe(word_df, use_container_width=True)
-
-                    with tab2:
+                    # Create two columns
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
                         # Display extracted fields
                         st.subheader("Extracted Fields")
                         if result.get('extracted_fields'):
@@ -873,7 +796,19 @@ class OCREnhancedApp:
                                 st.dataframe(df, use_container_width=True)
                             else:
                                 st.warning("No fields were successfully extracted")
+                        else:
+                            st.warning("No fields were extracted")
 
+                        # Display full text
+                        st.subheader("Full Extracted Text")
+                        st.text_area(
+                            label="",
+                            value=result.get('full_text', ''),
+                            height=200,
+                            key=f"text_{idx}"
+                        )
+
+                    with col2:
                         # Display confidence visualization
                         if result.get('extracted_fields'):
                             st.subheader("Confidence Scores")
@@ -895,6 +830,18 @@ class OCREnhancedApp:
                                 )
                                 st.plotly_chart(fig, use_container_width=True)
 
+                        # Add download button
+                        try:
+                            json_str = json.dumps(result, indent=2)
+                            st.download_button(
+                                label="Download Results",
+                                data=json_str,
+                                file_name=f"{file_data['filename']}_results.json",
+                                mime="application/json",
+                                key=f"download_{idx}"
+                            )
+                        except Exception as e:
+                            st.error(f"Error creating download: {str(e)}")
 
     def display_results(self, processed_files: List):
         """Display results with tabs"""
