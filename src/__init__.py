@@ -1,5 +1,4 @@
-# From your project root
-cd field-ocr-extraction
+
 
 # Clear/create empty __init__.py files
 echo "" > src/__init__.py
