@@ -203,51 +203,87 @@ class OCREnhancedApp:
         status_text.empty()
         return processed_files
         
+
     def process_single_image(self, image: Image.Image, selected_fields: Dict, confidence_threshold: float):
-        """Process a single image and extract fields"""
-        try:
-            # Ensure image is in RGB mode
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
+    """Process a single image and extract fields"""
+    try:
+        # Ensure image is in RGB mode
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Convert image to numpy array
+        img_np = np.array(image)
+        
+        # Ensure image is 3-channel RGB
+        if len(img_np.shape) == 2:  # If grayscale
+            img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
+        elif len(img_np.shape) == 3 and img_np.shape[2] == 4:  # If RGBA
+            img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
             
-            # Convert image to numpy array
-            img_np = np.array(image)
+        # OCR processing
+        result = self.model([img_np])
+        
+        # Extract fields
+        extracted_fields = {}
+        if result and result.pages:
+            # Get all text from the page
+            page = result.pages[0]
+            full_text = ""
             
-            # Ensure image is 3-channel RGB
-            if len(img_np.shape) == 2:  # If grayscale
-                img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
-            elif len(img_np.shape) == 3 and img_np.shape[2] == 4:  # If RGBA
-                img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
-                
-            # OCR processing
-            result = self.model([img_np])
+            # Iterate through blocks, lines, and words to construct full text
+            for block in page.blocks:
+                for line in block.lines:
+                    line_text = " ".join(word.value for word in line.words)
+                    full_text += line_text + "\n"
             
-            # Extract fields
-            extracted_fields = {}
-            if result and result.pages:
-                text = result.pages[0].get_text()
-                for field_name, is_selected in selected_fields.items():
-                    if is_selected:
-                        value, confidence = self.field_extractor.extract_with_context(
-                            text,
-                            field_name
-                        )
-                        if value and confidence >= confidence_threshold:
-                            extracted_fields[field_name] = (value, confidence)
+            # Extract fields from the constructed text
+            for field_name, is_selected in selected_fields.items():
+                if is_selected:
+                    value, confidence = self.field_extractor.extract_with_context(
+                        full_text,
+                        field_name
+                    )
+                    if value and confidence >= confidence_threshold:
+                        extracted_fields[field_name] = (value, confidence)
 
-            return {
-                'extracted_fields': extracted_fields,
-                'ocr_result': result
-            }
-
-        except Exception as e:
-            st.error(f"Error in image processing: {str(e)}")
-            st.error(f"Full error: {traceback.format_exc()}")
-            return {
-                'extracted_fields': {},
-                'ocr_result': None
-            }
+            # Add visualization data
+            height, width = img_np.shape[:2]
+            boxes_data = []
             
+            # Extract bounding boxes and text
+            for block in page.blocks:
+                for line in block.lines:
+                    for word in line.words:
+                        x0, y0 = word.geometry[0]
+                        x1, y1 = word.geometry[1]
+                        boxes_data.append({
+                            'text': word.value,
+                            'box': [
+                                int(x0 * width),
+                                int(y0 * height),
+                                int(x1 * width),
+                                int(y1 * height)
+                            ],
+                            'confidence': word.confidence
+                        })
+
+        return {
+            'extracted_fields': extracted_fields,
+            'boxes': boxes_data if 'boxes_data' in locals() else [],
+            'full_text': full_text if 'full_text' in locals() else "",
+            'ocr_result': result
+        }
+
+    except Exception as e:
+        st.error(f"Error in image processing: {str(e)}")
+        st.error(f"Full error: {traceback.format_exc()}")
+        return {
+            'extracted_fields': {},
+            'boxes': [],
+            'full_text': "",
+            'ocr_result': None
+        }
+
 
     def display_results(self, processed_files: List):
         """Display processed results with enhanced visualization"""
@@ -289,20 +325,59 @@ class OCREnhancedApp:
         st.plotly_chart(fig, use_container_width=True)
 
     def display_detailed_results(self, processed_files: List):
-        """Display detailed results for each file"""
-        for file_data in processed_files:
-            with st.expander(f"📄 {file_data['filename']}", expanded=False):
-                if file_data['result']:
+    """Display detailed results for each file"""
+    for file_data in processed_files:
+        with st.expander(f"📄 {file_data['filename']}", expanded=False):
+            if file_data['result']:
+                # Create two columns
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
                     # Display extracted fields
-                    df = pd.DataFrame([
-                        {
-                            'Field': field,
-                            'Value': value,
-                            'Confidence': f"{conf:.2%}"
-                        }
-                        for field, (value, conf) in file_data['result']['extracted_fields'].items()
-                    ])
-                    st.dataframe(df)
+                    st.subheader("Extracted Fields")
+                    if file_data['result']['extracted_fields']:
+                        df = pd.DataFrame([
+                            {
+                                'Field': field,
+                                'Value': value,
+                                'Confidence': f"{conf:.2%}"
+                            }
+                            for field, (value, conf) in file_data['result']['extracted_fields'].items()
+                        ])
+                        st.dataframe(df)
+                    else:
+                        st.warning("No fields were extracted")
+
+                    # Display full text
+                    st.subheader("Full Extracted Text")
+                    st.text_area("", value=file_data['result'].get('full_text', ''), height=200)
+
+                with col2:
+                    # Display confidence visualization
+                    st.subheader("Confidence Scores")
+                    if file_data['result']['extracted_fields']:
+                        scores = [(field, conf) for field, (_, conf) in 
+                                file_data['result']['extracted_fields'].items()]
+                        
+                        fig = go.Figure(go.Bar(
+                            x=[score[1] for score in scores],
+                            y=[score[0] for score in scores],
+                            orientation='h'
+                        ))
+                        fig.update_layout(
+                            title="Field Confidence Scores",
+                            xaxis_title="Confidence",
+                            yaxis_title="Field"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Add a download button for JSON data
+                    st.download_button(
+                        "Download Results",
+                        data=json.dumps(file_data['result'], indent=2),
+                        file_name=f"{file_data['filename']}_results.json",
+                        mime="application/json"
+                    )
 
     def display_raw_data(self, processed_files: List):
         """Display raw JSON data with download option"""
