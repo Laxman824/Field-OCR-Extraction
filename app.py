@@ -1,8 +1,14 @@
-from src.utils.field_extraction import FieldExtractor
-from src.utils.file_processing import DocumentProcessor
-from src.models.model_loader import load_model
-from src.config.field_patterns import FIELD_CATEGORIES
+# from src.utils.field_extraction import FieldExtractor
+# from src.utils.file_processing import DocumentProcessor
+# from src.models.model_loader import load_model
+# from src.config.field_patterns import FIELD_CATEGORIES
+from utils.field_extraction import FieldExtractor
+from utils.file_processing import DocumentProcessor
+from models.model_loader import load_model
+from config.field_patterns import FIELD_CATEGORIES
 import streamlit as st
+import sys
+from pathlib import Path
 import numpy as np
 from PIL import Image
 import cv2
