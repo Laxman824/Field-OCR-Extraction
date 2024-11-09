@@ -19,6 +19,9 @@ from datetime import datetime
 import traceback
 from typing import Dict, List, Tuple, Optional
 import yaml
+# Add the src directory to Python path
+src_path = Path(__file__).parent / 'src'
+sys.path.append(str(src_path))
 
 # Import custom modules
 
