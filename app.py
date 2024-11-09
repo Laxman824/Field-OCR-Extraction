@@ -221,75 +221,67 @@ class OCREnhancedApp:
                 img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
                 
             # OCR processing
-            result = self.model([img_np])
+            doc = self.model([img_np])
             
-            # Extract fields
-            extracted_fields = {}
-            boxes_data = []
-            full_text = ""
-            
-            if result and result.pages:
-                page = result.pages[0]
-                
-                # Extract text and boxes
-                for block in page.blocks:
-                    for line in block.lines:
-                        line_text = " ".join(word.value for word in line.words)
-                        full_text += line_text + "\n"
-                        
-                        # Extract word boxes
-                        for word in line.words:
-                            x0, y0 = word.geometry[0]
-                            x1, y1 = word.geometry[1]
-                            boxes_data.append({
-                                'text': word.value,
-                                'box': [
-                                    int(x0 * img_np.shape[1]),  # width
-                                    int(y0 * img_np.shape[0]),  # height
-                                    int(x1 * img_np.shape[1]),
-                                    int(y1 * img_np.shape[0])
-                                ],
-                                'confidence': float(word.confidence)
-                            })
-                
-                # Extract fields from the constructed text
-                for field_name, is_selected in selected_fields.items():
-                    if is_selected:
-                        value, confidence = self.field_extractor.extract_with_context(
-                            full_text,
-                            field_name
-                        )
-                        if value and confidence >= confidence_threshold:
-                            extracted_fields[field_name] = {
-                                'value': value,
-                                'confidence': float(confidence)
-                            }
-
-            # Create JSON-serializable result
-            serializable_result = {
-                'extracted_fields': extracted_fields,
-                'boxes': boxes_data,
-                'full_text': full_text,
+            # Initialize result dictionary with only serializable data
+            result_dict = {
+                'extracted_fields': {},
+                'words': [],
+                'full_text': '',
                 'image_size': {
                     'width': img_np.shape[1],
                     'height': img_np.shape[0]
                 }
             }
+            
+            if doc and doc.pages:
+                page = doc.pages[0]
+                full_text = []
+                
+                # Process blocks, lines, and words
+                for block in page.blocks:
+                    for line in block.lines:
+                        line_words = []
+                        for word in line.words:
+                            word_dict = {
+                                'text': word.value,
+                                'confidence': float(word.confidence),
+                                'bbox': [float(coord) for point in word.geometry for coord in point]
+                            }
+                            line_words.append(word_dict['text'])
+                            result_dict['words'].append(word_dict)
+                        full_text.append(' '.join(line_words))
+                
+                # Join all text
+                result_dict['full_text'] = '\n'.join(full_text)
+                
+                # Extract fields
+                for field_name, is_selected in selected_fields.items():
+                    if is_selected:
+                        value, confidence = self.field_extractor.extract_with_context(
+                            result_dict['full_text'],
+                            field_name
+                        )
+                        if value and confidence >= confidence_threshold:
+                            result_dict['extracted_fields'][field_name] = {
+                                'value': str(value),
+                                'confidence': float(confidence)
+                            }
 
-            return serializable_result
+            return result_dict
 
         except Exception as e:
             st.error(f"Error in image processing: {str(e)}")
             st.error(f"Full error: {traceback.format_exc()}")
             return {
                 'extracted_fields': {},
-                'boxes': [],
-                'full_text': "",
-                'image_size': None
+                'words': [],
+                'full_text': '',
+                'image_size': {'width': 0, 'height': 0}
             }
 
     def display_detailed_results(self, processed_files: List):
-        """Display detailed results for each file"""
+        """Display detailed results with safe JSON handling"""
         for file_data in processed_files:
             with st.expander(f"📄 {file_data['filename']}", expanded=False):
                 result = file_data.get('result', {})
@@ -301,14 +293,14 @@ class OCREnhancedApp:
                         # Display extracted fields
                         st.subheader("Extracted Fields")
                         if result.get('extracted_fields'):
-                            df_data = []
-                            for field, info in result['extracted_fields'].items():
-                                df_data.append({
+                            df_data = [
+                                {
                                     'Field': field,
                                     'Value': info['value'],
                                     'Confidence': f"{info['confidence']:.2%}"
-                                })
-                            
+                                }
+                                for field, info in result['extracted_fields'].items()
+                            ]
                             if df_data:
                                 df = pd.DataFrame(df_data)
                                 st.dataframe(df)
@@ -323,9 +315,10 @@ class OCREnhancedApp:
                         # Display confidence visualization
                         st.subheader("Confidence Scores")
                         if result.get('extracted_fields'):
-                            scores = [(field, info['confidence']) 
-                                    for field, info in result['extracted_fields'].items()]
-                            
+                            scores = [
+                                (field, info['confidence'])
+                                for field, info in result['extracted_fields'].items()
+                            ]
                             if scores:
                                 fig = go.Figure(go.Bar(
                                     x=[score[1] for score in scores],
@@ -339,15 +332,20 @@ class OCREnhancedApp:
                                     xaxis=dict(range=[0, 1])
                                 )
                                 st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Add a download button for JSON data
-                        st.download_button(
-                            "Download Results",
-                            data=json.dumps(result, indent=2),
-                            file_name=f"{file_data['filename']}_results.json",
-                            mime="application/json"
-                        )
 
+                        try:
+                            # Safely create JSON for download
+                            json_str = json.dumps(result, indent=2)
+                            st.download_button(
+                                "Download Results",
+                                data=json_str,
+                                file_name=f"{file_data['filename']}_results.json",
+                                mime="application/json"
+                            )
+                        except TypeError as e:
+                            st.error(f"Error creating JSON: {str(e)}")
+                            st.error("Some data could not be serialized to JSON")
+                            
     def display_results(self, processed_files: List):
         """Display processed results with enhanced visualization"""
         if not processed_files:
