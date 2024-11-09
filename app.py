@@ -281,8 +281,54 @@ class OCREnhancedApp:
             }
 
 
+    def display_summary(self, processed_files: List):
+        """Display summary statistics"""
+        st.subheader("Processing Summary")
+        
+        # Summary metrics
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                label="Files Processed",
+                value=len(processed_files)
+            )
+        
+        with col2:
+            avg_confidence = self.calculate_average_confidence(processed_files)
+            st.metric(
+                label="Average Confidence",
+                value=f"{avg_confidence:.2f}%"
+            )
+        
+        with col3:
+            success_rate = self.calculate_success_rate(processed_files)
+            st.metric(
+                label="Success Rate",
+                value=f"{success_rate:.2f}%"
+            )
+
+        # Add confidence distribution if there are results
+        if processed_files:
+            st.subheader("Confidence Distribution")
+            confidence_data = []
+            for file_data in processed_files:
+                if file_data['result'].get('extracted_fields'):
+                    for field_info in file_data['result']['extracted_fields'].values():
+                        confidence_data.append(field_info['confidence'])
+            
+            if confidence_data:
+                fig = go.Figure(data=[go.Histogram(x=confidence_data, nbinsx=20)])
+                fig.update_layout(
+                    title="Field Confidence Distribution",
+                    xaxis_title="Confidence Score",
+                    yaxis_title="Frequency",
+                    xaxis=dict(range=[0, 1])
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
     def display_detailed_results(self, processed_files: List):
-        """Display detailed results with safe JSON handling and unique keys"""
+        """Display detailed results with safe JSON handling"""
         for idx, file_data in enumerate(processed_files):
             with st.expander(f"📄 {file_data['filename']}", expanded=idx == 0):
                 result = file_data.get('result', {})
@@ -304,14 +350,21 @@ class OCREnhancedApp:
                             ]
                             if df_data:
                                 df = pd.DataFrame(df_data)
-                                st.dataframe(df, key=f"df_{idx}")
+                                st.dataframe(
+                                    df,
+                                    use_container_width=True,
+                                    key=f"df_{idx}"
+                                )
                         else:
-                            st.warning("No fields were extracted", key=f"warn_{idx}")
+                            st.warning(
+                                "No fields were extracted",
+                                key=f"warn_{idx}"
+                            )
 
                         # Display full text
                         st.subheader("Full Extracted Text")
                         st.text_area(
-                            "",
+                            label="Extracted Text",
                             value=result.get('full_text', ''),
                             height=200,
                             key=f"text_{idx}"
@@ -319,8 +372,8 @@ class OCREnhancedApp:
 
                     with col2:
                         # Display confidence visualization
-                        st.subheader("Confidence Scores")
                         if result.get('extracted_fields'):
+                            st.subheader("Confidence Scores")
                             scores = [
                                 (field, info['confidence'])
                                 for field, info in result['extracted_fields'].items()
@@ -337,71 +390,30 @@ class OCREnhancedApp:
                                     yaxis_title="Field",
                                     xaxis=dict(range=[0, 1])
                                 )
-                                st.plotly_chart(fig, use_container_width=True, key=f"plot_{idx}")
+                                st.plotly_chart(
+                                    fig,
+                                    use_container_width=True,
+                                    key=f"plot_{idx}"
+                                )
 
                         try:
                             # Safely create JSON for download
                             json_str = json.dumps(result, indent=2)
                             st.download_button(
-                                "Download Results",
+                                label="Download Results",
                                 data=json_str,
                                 file_name=f"{file_data['filename']}_results.json",
                                 mime="application/json",
                                 key=f"download_{idx}"
                             )
                         except TypeError as e:
-                            st.error(f"Error creating JSON: {str(e)}", key=f"error_json_{idx}")
-
-    def display_results(self, processed_files: List):
-        """Display results with tabs"""
-        if not processed_files:
-            st.warning("No files have been processed yet.", key="no_files_warning")
-            return
-
-        # Create tabs for different views
-        tab1, tab2, tab3 = st.tabs(["📊 Summary", "📄 Detailed View", "🔍 JSON View"])
-
-        with tab1:
-            self.display_summary(processed_files)
-
-        with tab2:
-            self.display_detailed_results(processed_files)
-
-        with tab3:
-            self.display_raw_data(processed_files)
-
-    def display_summary(self, processed_files: List):
-        """Display summary statistics with unique keys"""
-        st.subheader("Processing Summary")
-        
-        # Summary metrics
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric(
-                "Files Processed",
-                len(processed_files),
-                key="metric_files"
-            )
-        
-        with col2:
-            avg_confidence = self.calculate_average_confidence(processed_files)
-            st.metric(
-                "Average Confidence",
-                f"{avg_confidence:.2f}%",
-                key="metric_confidence"
-            )
-        
-        with col3:
-            success_rate = self.calculate_success_rate(processed_files)
-            st.metric(
-                "Success Rate",
-                f"{success_rate:.2f}%",
-                key="metric_success"
-            )
+                            st.error(
+                                f"Error creating JSON: {str(e)}",
+                                key=f"error_json_{idx}"
+                            )
 
     def display_raw_data(self, processed_files: List):
-        """Display raw JSON data with unique key"""
+        """Display raw JSON data"""
         try:
             # Create a clean version of the data for JSON display
             clean_data = []
@@ -417,12 +429,12 @@ class OCREnhancedApp:
                 clean_data.append(clean_file_data)
 
             # Display JSON
-            st.json(clean_data, key="raw_json")
+            st.json(clean_data)
             
             # Download button for complete data
             json_str = json.dumps(clean_data, indent=2)
             st.download_button(
-                "Download Complete Results",
+                label="Download Complete Results",
                 data=json_str,
                 file_name="all_results.json",
                 mime="application/json",
@@ -433,7 +445,6 @@ class OCREnhancedApp:
                 f"Error displaying raw data: {str(e)}",
                 key="raw_data_error"
             )
-
 
     def generate_report(self):
         """Generate downloadable report"""
