@@ -1049,3 +1049,7 @@ class OCREnhancedApp:
         except Exception as e:
             st.error(f"Error generating report: {str(e)}")
             st.error(traceback.format_exc())
+
+if __name__ == "__main__":
+    app = OCREnhancedApp()
+    app.run()
