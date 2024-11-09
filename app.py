@@ -931,9 +931,9 @@ class OCREnhancedApp:
         """Run the enhanced OCR application"""
         st.title("📚 Advanced Document OCR System")
         st.markdown("""
-        Upload your documents and extract information with advanced processing capabilities.
-        Supports PDF and image formats with batch processing.
-        """)
+            Upload your documents and extract information with advanced processing capabilities.
+            Supports PDF and image formats with batch processing.
+            """)
 
         # Create sidebar and get settings
         settings = self.create_sidebar()
@@ -950,3 +950,102 @@ class OCREnhancedApp:
             
             # Display results
             self.display_results(st.session_state.processed_files)
+
+    def generate_report(self):
+        """Generate a comprehensive report of processed documents"""
+        if not st.session_state.processed_files:
+            st.warning("No processed files available for report generation.")
+            return
+
+        try:
+            report_data = {
+                'summary': {
+                    'total_files': len(st.session_state.processed_files),
+                    'average_confidence': self.calculate_average_confidence(st.session_state.processed_files),
+                    'success_rate': self.calculate_success_rate(st.session_state.processed_files)
+                },
+                'files': []
+            }
+
+            # Process each file
+            for file_data in st.session_state.processed_files:
+                file_report = {
+                    'filename': file_data['filename'],
+                    'extracted_fields': {},
+                    'statistics': {
+                        'field_count': 0,
+                        'average_confidence': 0.0
+                    }
+                }
+
+                if file_data['result'].get('extracted_fields'):
+                    field_confidences = []
+                    for field, info in file_data['result']['extracted_fields'].items():
+                        file_report['extracted_fields'][field] = {
+                            'value': info['value'],
+                            'confidence': info['confidence']
+                        }
+                        field_confidences.append(info['confidence'])
+
+                    file_report['statistics']['field_count'] = len(field_confidences)
+                    file_report['statistics']['average_confidence'] = (
+                        sum(field_confidences) / len(field_confidences)
+                        if field_confidences else 0.0
+                    )
+
+                report_data['files'].append(file_report)
+
+            # Create JSON for download
+            json_str = json.dumps(report_data, indent=2)
+            
+            # Create download button
+            st.download_button(
+                label="📥 Download Report",
+                data=json_str,
+                file_name=f"ocr_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json",
+                key="download_report"
+            )
+
+            # Display report summary
+            st.subheader("Report Summary")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric(
+                    label="Total Files",
+                    value=report_data['summary']['total_files']
+                )
+            with col2:
+                st.metric(
+                    label="Average Confidence",
+                    value=f"{report_data['summary']['average_confidence']:.2f}%"
+                )
+            with col3:
+                st.metric(
+                    label="Success Rate",
+                    value=f"{report_data['summary']['success_rate']:.2f}%"
+                )
+
+            # Display detailed results
+            st.subheader("Detailed Results")
+            for file_data in report_data['files']:
+                with st.expander(f"📄 {file_data['filename']}", expanded=False):
+                    if file_data['extracted_fields']:
+                        df_data = [
+                            {
+                                'Field': field,
+                                'Value': info['value'],
+                                'Confidence': f"{info['confidence']:.2%}"
+                            }
+                            for field, info in file_data['extracted_fields'].items()
+                        ]
+                        st.dataframe(
+                            pd.DataFrame(df_data),
+                            use_container_width=True,
+                        )
+                    else:
+                        st.warning("No fields extracted from this document")
+
+        except Exception as e:
+            st.error(f"Error generating report: {str(e)}")
+            st.error(traceback.format_exc())
