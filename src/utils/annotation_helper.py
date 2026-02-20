@@ -98,14 +98,167 @@ def create_annotated_image(
     return annotated
 
 
+def create_annotated_image_with_exact_boxes(
+    original_image: np.ndarray,
+    extracted_fields: Dict[str, dict],
+    words_data: list = None
+) -> np.ndarray:
+    """
+    Create annotated image with EXACT bounding boxes from OCR detection.
+    Draws colored rectangles around the actual locations where fields are detected.
+    
+    Colors indicate confidence levels:
+    - Green  (>= 90%): High confidence
+    - Yellow (70-90%): Medium confidence  
+    - Orange (50-70%): Low confidence
+    - Red    (< 50%): Very low confidence
+    
+    Args:
+        original_image: Numpy array of the original image
+        extracted_fields: Dict with field names, values, and confidence scores
+        words_data: List of word objects from OCR with bounding boxes
+                   Each word: {"text": str, "confidence": float, "bbox": [[x1,y1], [x2,y2], ...]}
+    
+    Returns:
+        Annotated image with colored bounding boxes
+    """
+    annotated = original_image.copy()
+    if len(annotated.shape) == 2:
+        annotated = cv2.cvtColor(annotated, cv2.COLOR_GRAY2BGR)
+    
+    height, width = annotated.shape[:2]
+    
+    if not words_data:
+        # Fallback to text overlay if no OCR bbox data available
+        return create_annotated_image_simple(original_image, extracted_fields)
+    
+    # Build mapping of extracted field values to field info
+    field_text_map = {}
+    for field_name, field_data in extracted_fields.items():
+        value = str(field_data.get('value', '')).strip().lower()
+        if value:
+            field_text_map[value] = {
+                'name': field_name,
+                'confidence': field_data.get('confidence', 0.5),
+                'original_value': field_data.get('value', '')
+            }
+    
+    # Find and draw boxes for extracted field values
+    drawn_boxes = []
+    
+    for word in words_data:
+        word_text = word.get('text', '').strip().lower()
+        word_confidence = word.get('confidence', 0.0)
+        bbox = word.get('bbox', [])
+        
+        if not bbox or not word_text:
+            continue
+        
+        # Check if this word matches any extracted field value (or is part of it)
+        matched_field = None
+        for field_value, field_info in field_text_map.items():
+            if word_text in field_value or field_value in word_text or word_text == field_value:
+                matched_field = field_info
+                break
+        
+        if not matched_field:
+            continue
+        
+        try:
+            # Parse bbox: typically [[x1,y1], [x2,y2], [x3,y3], [x4,y4]] for quad
+            # Convert to rectangle coordinates
+            x_coords = [pt[0] for pt in bbox]
+            y_coords = [pt[1] for pt in bbox]
+            
+            x_min = max(0, int(min(x_coords)))
+            y_min = max(0, int(min(y_coords)))
+            x_max = min(width, int(max(x_coords)))
+            y_max = min(height, int(max(y_coords)))
+            
+            if x_max <= x_min or y_max <= y_min:
+                continue
+            
+            color = get_confidence_color(matched_field['confidence'])
+            
+            # Draw semi-transparent background overlay (slight highlight)
+            overlay = annotated.copy()
+            cv2.rectangle(overlay, (x_min, y_min), (x_max, y_max), color, -1)
+            cv2.addWeighted(overlay, 0.15, annotated, 0.85, 0, annotated)
+            
+            # Draw colored border box (thick)
+            cv2.rectangle(annotated, (x_min, y_min), (x_max, y_max), color, 3)
+            
+            # Draw field name and confidence above the box
+            label_text = f"{matched_field['name']}: {matched_field['confidence']:.0%}"
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            thickness = 1
+            
+            (text_w, text_h), baseline = cv2.getTextSize(
+                label_text, font, font_scale, thickness
+            )
+            
+            # Background for label
+            label_y = max(15, y_min - 5)
+            label_x = x_min
+            
+            label_overlay = annotated.copy()
+            cv2.rectangle(
+                label_overlay,
+                (label_x, label_y - text_h - 3),
+                (label_x + text_w + 6, label_y + baseline + 2),
+                color,
+                -1
+            )
+            cv2.addWeighted(label_overlay, 0.8, annotated, 0.2, 0, annotated)
+            
+            # Draw label text
+            cv2.putText(
+                annotated,
+                label_text,
+                (label_x + 3, label_y),
+                font,
+                font_scale,
+                (255, 255, 255),
+                thickness,
+                cv2.LINE_AA
+            )
+            
+            drawn_boxes.append({
+                'field': matched_field['name'],
+                'bbox': (x_min, y_min, x_max, y_max)
+            })
+            
+        except Exception as e:
+            # Skip malformed bbox
+            continue
+    
+    # Add text summary on top-left if space available
+    if drawn_boxes:
+        summary_text = f"✓ {len(set(b['field'] for b in drawn_boxes))} fields detected"
+        cv2.putText(
+            annotated,
+            summary_text,
+            (10, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            1,
+            cv2.LINE_AA
+        )
+    
+    return annotated
+
+
 def create_annotated_image_simple(
     original_image: np.ndarray,
     extracted_fields: Dict[str, dict]
 ) -> np.ndarray:
     """
-    Create annotated image with colored text labels for each extracted field.
-    Colors indicate confidence levels.
+    Fallback: Create annotated image with colored text labels for each extracted field.
+    Used when OCR bounding box data is not available.
     
+    Colors indicate confidence levels:
     Green  (>= 90%): High confidence
     Yellow (70-90%): Medium confidence  
     Orange (50-70%): Low confidence

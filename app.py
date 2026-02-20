@@ -918,6 +918,21 @@ class OCREnhancedApp:
 
         # Show file preview chips
         if uploaded_files:
+            # ⚠️ AUTO-CLEAR on new upload (detects if files changed)
+            if "previous_file_count" not in st.session_state:
+                st.session_state.previous_file_count = 0
+            
+            current_file_count = len(uploaded_files)
+            if (current_file_count != st.session_state.previous_file_count and 
+                st.session_state.previous_file_count > 0):
+                # User uploaded new files - auto-clear old results
+                st.session_state.processed_files = []
+                st.session_state.batch_results = {}
+                st.session_state.processing_complete = False
+                st.warning("📢 Previous results cleared. Processing new files...")
+            
+            st.session_state.previous_file_count = current_file_count
+            
             chips_html = ""
             for f in uploaded_files:
                 ext = f.name.split(".")[-1].upper()
@@ -1247,6 +1262,12 @@ class OCREnhancedApp:
                 if has_image:
                     st.markdown("### 🖼️ Document Visualization")
                     
+                    # InfoBox explaining the visualization
+                    st.info(
+                        "**📍 Exact Field Detection:** Each colored box shows the precise location where a field was detected. "
+                        "Box colors indicate confidence level (🟢Green≥90% | 🟡Yellow 70-90% | 🟠Orange 50-70% | 🔴Red<50%)"
+                    )
+                    
                     # Create two columns for side-by-side view
                     orig_col, anno_col = st.columns(2)
                     
@@ -1259,19 +1280,29 @@ class OCREnhancedApp:
                         )
                     
                     with anno_col:
-                        st.markdown("**🏷️ Extracted Fields (Annotated)**")
+                        st.markdown("**🏷️ Extracted Fields (Annotated with Exact Boxes)**")
                         
-                        # Generate annotated image
-                        from utils.annotation_helper import create_annotated_image_simple
+                        # Generate annotated image with exact bounding boxes
+                        from utils.annotation_helper import create_annotated_image_with_exact_boxes
                         
                         img_array = np.array(file_data["image"])
-                        annotated_img = create_annotated_image_simple(img_array, fields)
+                        words_data = result.get("words", [])
+                        
+                        # Use exact boxes if word data available, fallback to text labels
+                        if words_data:
+                            annotated_img = create_annotated_image_with_exact_boxes(
+                                img_array, fields, words_data
+                            )
+                        else:
+                            from utils.annotation_helper import create_annotated_image_simple
+                            annotated_img = create_annotated_image_simple(img_array, fields)
+                        
                         annotated_pil = Image.fromarray(cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB))
                         
                         st.image(
                             annotated_pil,
                             use_container_width=True,
-                            caption="Fields with Confidence Scores",
+                            caption="Exact field detection locations with colored boxes",
                         )
                     
                     # Legend for confidence colors
