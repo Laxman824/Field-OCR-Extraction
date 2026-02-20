@@ -1243,38 +1243,51 @@ class OCREnhancedApp:
                 f"{file_data['filename']}  —  {field_count} fields extracted",
                 expanded=(idx == 0),
             ):
-                # ── TOP: Original image ─────────────────────────
+                # ── TOP: Original image + Annotated ─────────────────────────
                 if has_image:
-                    img_col, info_col = st.columns([2, 1])
-                    with img_col:
-                        st.markdown("**🖼️ Original Document**")
+                    st.markdown("### 🖼️ Document Visualization")
+                    
+                    # Create two columns for side-by-side view
+                    orig_col, anno_col = st.columns(2)
+                    
+                    with orig_col:
+                        st.markdown("**📄 Original Document**")
                         st.image(
                             file_data["image"],
                             use_container_width=True,
-                            caption=file_data["filename"],
+                            caption="Original",
                         )
-                    with info_col:
-                        w = result.get("image_size", {}).get("width", 0)
-                        h = result.get("image_size", {}).get("height", 0)
-                        word_count = len(result.get("words", []))
-                        st.markdown("**📐 Image Info**")
-                        st.markdown(f"""
-                        <div class="result-card">
-                            <div class="field-row">
-                                <span class="field-name">Dimensions</span>
-                                <span class="field-value">{w} × {h}</span>
-                            </div>
-                            <div class="field-row">
-                                <span class="field-name">Words Found</span>
-                                <span class="field-value">{word_count}</span>
-                            </div>
-                            <div class="field-row">
-                                <span class="field-name">Fields Extracted</span>
-                                <span class="field-value">{field_count}</span>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-
+                    
+                    with anno_col:
+                        st.markdown("**🏷️ Extracted Fields (Annotated)**")
+                        
+                        # Generate annotated image
+                        from utils.annotation_helper import create_annotated_image_simple
+                        
+                        img_array = np.array(file_data["image"])
+                        annotated_img = create_annotated_image_simple(img_array, fields)
+                        annotated_pil = Image.fromarray(cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB))
+                        
+                        st.image(
+                            annotated_pil,
+                            use_container_width=True,
+                            caption="Fields with Confidence Scores",
+                        )
+                    
+                    # Legend for confidence colors
+                    st.markdown("---")
+                    st.markdown("**Color Legend:**")
+                    legend_cols = st.columns(4)
+                    legend_items = [
+                        ("🟢", "High", ">= 90%"),
+                        ("🟡", "Medium", "70-90%"),
+                        ("🟠", "Low", "50-70%"),
+                        ("🔴", "Very Low", "< 50%"),
+                    ]
+                    for col, (emoji, label, range_str) in zip(legend_cols, legend_items):
+                        with col:
+                            st.caption(f"{emoji} {label} ({range_str})")
+                    
                     st.markdown("---")
 
                 # ── BOTTOM: Fields + Confidence (same as before) ─
